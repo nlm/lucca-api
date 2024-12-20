@@ -4,20 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
+	"maps"
+	"net/http"
+	"os"
+	"slices"
 
 	"github.com/BurntSushi/toml"
 	"github.com/nlm/lucca-api/api"
-	"github.com/nlm/lucca-api/timesheets"
 )
 
 var (
+	flagMock       = flag.Bool("mock", false, "use mock data")
 	flagConfigFile = flag.String("config", "config.toml", "config file")
+	flagDebug      = flag.Bool("debug", false, "debug mode")
+	flagNoCache    = flag.Bool("no-cache", false, "disable cache")
 )
 
 type Config struct {
 	Host       string `toml:"host"`
 	AuthCookie string `toml:"auth-cookie"`
+}
+
+var Commands = map[string]func(context.Context, *api.Client, []string) error{
+	"list-timesheets": ListTimesheets,
 }
 
 func main() {
@@ -33,41 +44,39 @@ func main() {
 		log.Fatal(err)
 	}
 
+	transport := api.NewHeadersRoundTripper(http.DefaultTransport, map[string]string{
+		"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+	})
+
 	// Client
 	client := api.NewClient(api.ClientOptions{
 		Host:       config.Host,
 		AuthCookie: config.AuthCookie,
+		Transport:  transport,
+		Cache:      !*flagNoCache,
 	})
 
-	// identityService := identity.New(client)
-	// pri, err := identityService.GetPrincipal(context.Background(), &identity.GetPrincipalRequest{})
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println(pri)
+	ctx := context.Background()
 
-	timeSheetsService := timesheets.New(client)
-	// res, err := timeSheetsService.ListApprovables(context.Background(), &timesheets.ListApprovablesRequest{
-	// 	Page: api.Page{
-	// 		Page:     1,
-	// 		PageSize: 50,
-	// 	},
-	// 	LoadPayrollInfo:   true,
-	// 	IncludeOnlyOthers: false,
-	// })
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// client.HTTPClient().Transport = &api.MockRoundTripper{}
-	res, err := timeSheetsService.GetTimesheetDetails(context.Background(), &timesheets.GetTimesheetDetailsRequest{
-		OwnerId: 368,
-		From:    api.NewDate(2024, 10, 28),
-		Until:   api.NewDate(2024, 11, 3),
-	})
-	if err != nil {
-		log.Fatal(err)
+	args := flag.Args()
+	if cmd, ok := Commands[args[0]]; ok {
+		err := cmd(ctx, client, args[1:])
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		fmt.Println("error: unknown command:", os.Args[1])
+		fmt.Println()
+		fmt.Println("available commands: ")
+		fmt.Println()
+		for _, v := range slices.Sorted(maps.Keys(Commands)) {
+			fmt.Println(" ", v)
+		}
+		fmt.Println()
+		flag.Usage()
+		os.Exit(1)
 	}
-	PrintJson(res)
+
 }
 
 func PrintJson(v any) {
