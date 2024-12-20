@@ -17,18 +17,21 @@ type ClientOptions struct {
 	AuthCookie string
 	AppToken   string
 	Transport  http.RoundTripper
+	Logger     *log.Logger
+	Cache      bool
 }
 
 type Client struct {
 	baseUrl URL
 	hc      http.Client
+	logger  *log.Logger
+	cache   map[CacheKey][]byte
 }
 
 func NewClient(options ClientOptions) *Client {
 	u := URL{
 		Scheme: "https",
 		Host:   options.Host,
-		// Path:   "",
 	}
 	jar, _ := cookiejar.New(nil)
 	// Handle Cookie Authentication
@@ -46,24 +49,37 @@ func NewClient(options ClientOptions) *Client {
 	if options.AppToken != "" {
 		transport = NewLuccaAuthRoundTripper(options.AppToken, transport)
 	}
-	return &Client{
+	client := &Client{
 		hc: http.Client{
 			Jar:       jar,
 			Transport: transport,
 		},
 		baseUrl: u,
+		logger:  options.Logger,
 	}
+	if options.Cache {
+		client.cache = make(map[CacheKey][]byte)
+	}
+	return client
 }
 
 func (c *Client) Get(ctx context.Context, extraPath string, getParams any, result any) error {
 	url := c.baseUrl.WithExtraPath(extraPath).WithGetParams(getParams)
+	if cachedBody := c.GetCache(CacheKeyOf(http.MethodGet, extraPath, getParams)); cachedBody != nil {
+		if c.logger != nil {
+			c.logger.Printf("response from cache")
+		}
+		return json.Unmarshal(cachedBody, result)
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
 	// log.Printf("REQ->%v\n", req)
-	log.Printf("URL->%v\n", req.URL.String())
+	if c.logger != nil {
+		c.logger.Printf("URL->%v\n", req.URL.String())
+	}
 	res, err := c.hc.Do(req)
 	if err != nil {
 		return err
@@ -75,19 +91,28 @@ func (c *Client) Get(ctx context.Context, extraPath string, getParams any, resul
 	if err != nil {
 		return err
 	}
-	log.Print("BODY->", string(body))
-	log.Printf("RES->%v\n", *res)
+	if c.logger != nil {
+		log.Print("BODY->", string(body))
+		log.Printf("RES->%v\n", *res)
+	}
 	if reflect.TypeOf(result).Kind() != reflect.Pointer {
-		log.Printf("warning: result is not a pointer")
+		if c.logger != nil {
+			log.Printf("warning: result is not a pointer")
+		}
 	}
 	err = json.Unmarshal(body, result)
 	if err != nil {
 		return err
 	}
+	c.SetCache(CacheKeyOf(http.MethodGet, extraPath, getParams), body)
 	return nil
 }
 
 // HTTPClient returns the inner http.Client contained in Client.
 func (c *Client) HTTPClient() *http.Client {
 	return &c.hc
+}
+
+func Ptr[T any](v T) *T {
+	return &v
 }

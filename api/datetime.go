@@ -17,7 +17,7 @@ var TimeFormats = []string{
 }
 
 // Implement Marshaler and Unmarshaler interface
-func (j *DateTime) UnmarshalJSON(b []byte) error {
+func (d *DateTime) UnmarshalJSON(b []byte) error {
 	var (
 		t   time.Time
 		err error
@@ -26,7 +26,7 @@ func (j *DateTime) UnmarshalJSON(b []byte) error {
 	for _, tf := range TimeFormats {
 		t, err = time.Parse(tf, s)
 		if err == nil {
-			*j = DateTime(t)
+			*d = DateTime(t)
 			return nil
 		}
 
@@ -35,7 +35,15 @@ func (j *DateTime) UnmarshalJSON(b []byte) error {
 }
 
 func (j DateTime) MarshalJSON() ([]byte, error) {
-	return json.Marshal(time.Time(j))
+	return json.Marshal(j.AsTime())
+}
+
+func (d DateTime) String() string {
+	return d.AsTime().Format("2006-01-02T15:04:05.999")
+}
+
+func (j DateTime) AsTime() time.Time {
+	return time.Time(j)
 }
 
 var _ json.Marshaler = (*Date)(nil)
@@ -43,22 +51,26 @@ var _ json.Unmarshaler = (*Date)(nil)
 
 type Date time.Time
 
-func (j *Date) UnmarshalJSON(b []byte) error {
+func (d *Date) UnmarshalJSON(b []byte) error {
 	s := strings.Trim(string(b), "\"")
 	t, err := time.Parse(time.DateOnly, s)
 	if err != nil {
 		return err
 	}
-	*j = Date(t)
+	*d = Date(t)
 	return nil
 }
 
-func (j Date) MarshalJSON() ([]byte, error) {
-	return json.Marshal(time.Time(j).Format(time.DateOnly))
+func (d Date) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.AsTime().Format(time.DateOnly))
 }
 
-func (j Date) String() string {
-	return time.Time(j).Format(time.DateOnly)
+func (d Date) String() string {
+	return d.AsTime().Format(time.DateOnly)
+}
+
+func (d Date) AsTime() time.Time {
+	return time.Time(d)
 }
 
 func NewDate(year, month, day int) Date {

@@ -10,7 +10,7 @@ import (
 )
 
 func TestGetTimesheetDetailsRequestMarshallJSON(t *testing.T) {
-	gtdr := GetTimesheetDetailsRequest{
+	gtdr := ListTimesheetDetailsRequest{
 		OwnerId: 0,
 		From:    api.NewDate(2024, 12, 01),
 		Until:   api.NewDate(2024, 12, 31),

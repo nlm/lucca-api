@@ -21,10 +21,7 @@ type Principal struct {
 }
 
 func (s *IdentityService) GetPrincipal(ctx context.Context, req *GetPrincipalRequest) (*Principal, error) {
-	var res Principal
-	err := s.client.Get(ctx, "/identity/api/principal", req, &res)
-	if err != nil {
-		return nil, err
-	}
-	return &res, nil
+	res := new(Principal)
+	err := s.client.Get(ctx, "/identity/api/principal", req, res)
+	return res, err
 }

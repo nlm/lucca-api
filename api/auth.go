@@ -6,7 +6,7 @@ import (
 
 type LuccaAuthRoundTripper struct {
 	token string
-	rt    http.RoundTripper
+	next  http.RoundTripper
 }
 
 func NewLuccaAuthRoundTripper(token string, rt http.RoundTripper) *LuccaAuthRoundTripper {
@@ -15,11 +15,11 @@ func NewLuccaAuthRoundTripper(token string, rt http.RoundTripper) *LuccaAuthRoun
 	}
 	return &LuccaAuthRoundTripper{
 		token: token,
-		rt:    rt,
+		next:  rt,
 	}
 }
 
 func (rt *LuccaAuthRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("Authorization", "lucca application="+rt.token)
-	return rt.rt.RoundTrip(r)
+	return rt.next.RoundTrip(r)
 }

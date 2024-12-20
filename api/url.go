@@ -34,7 +34,7 @@ func (u URL) WithGetParams(p any) URL {
 		if ok {
 			tag, tagOpt := parseTag(jsonTag)
 			fieldValue := v.FieldByIndex(field.Index)
-			if !fieldValue.IsZero() && tagOpt.Contains("omitempty") {
+			if !(fieldValue.IsZero() && tagOpt.Contains("omitempty")) {
 				q.Set(tag, fmt.Sprint(fieldValue.Interface()))
 			}
 		}
@@ -42,28 +42,3 @@ func (u URL) WithGetParams(p any) URL {
 	u.RawQuery = q.Encode()
 	return u
 }
-
-// func (u URL) WithURLParams(p any) URL {
-// 	t := reflect.TypeOf(p)
-// 	v := reflect.ValueOf(p)
-// 	if t.Kind() == reflect.Pointer {
-// 		t = t.Elem()
-// 		v = v.Elem()
-// 	}
-// 	// fmt.Println("TYPE", t.Name())
-
-// 	q := (*url.URL)(&u).Query()
-// 	for _, field := range reflect.VisibleFields(t) {
-// 		// fmt.Println("FIELD", field.Name)
-// 		urlTag, ok := field.Tag.Lookup("url")
-// 		if ok {
-// 			tag, tagOpt := parseTag(urlTag)
-// 			fieldValue := v.FieldByIndex(field.Index)
-// 			if !fieldValue.IsZero() && tagOpt.Contains("omitempty") {
-// 				q.Set(tag, fmt.Sprint(fieldValue.Interface()))
-// 			}
-// 		}
-// 	}
-// 	u.RawQuery = q.Encode()
-// 	return u
-// }
