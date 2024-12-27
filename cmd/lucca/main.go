@@ -9,17 +9,21 @@ import (
 	"maps"
 	"net/http"
 	"os"
+	"os/signal"
 	"slices"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/nlm/lucca-api/api"
 )
 
 var (
-	flagMock       = flag.Bool("mock", false, "use mock data")
-	flagConfigFile = flag.String("config", "config.toml", "config file")
-	flagDebug      = flag.Bool("debug", false, "debug mode")
-	flagNoCache    = flag.Bool("no-cache", false, "disable cache")
+	flagMock          = flag.Bool("mock", false, "use mock data")
+	flagConfigFile    = flag.String("config", "config.toml", "config file")
+	flagDebug         = flag.Bool("debug", false, "debug mode")
+	flagNoCache       = flag.Bool("no-cache", false, "disable cache")
+	flagThrottleQps   = flag.Int("throttle-qps", 5, "requests per second")
+	flagThrottleBurst = flag.Int("throttle-burst", 5, "requests burst")
 )
 
 type Config struct {
@@ -27,8 +31,47 @@ type Config struct {
 	AuthCookie string `toml:"auth-cookie"`
 }
 
-var Commands = map[string]func(context.Context, *api.Client, []string) error{
-	"list-timesheets": ListTimesheets,
+type CommandFunc func(ctx context.Context, client *api.Client, args []string) error
+
+var cliCommands = make(map[string]CommandFunc)
+
+func RegisterCommand(name string, fn CommandFunc) {
+	if _, ok := cliCommands[name]; ok {
+		panic(fmt.Sprintln("command already registered:", name))
+	}
+	cliCommands[name] = fn
+}
+
+func help(err error) {
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("available commands: ")
+	fmt.Println()
+	for _, v := range slices.Sorted(maps.Keys(cliCommands)) {
+		fmt.Println(" ", v)
+	}
+	fmt.Println()
+	flag.Usage()
+}
+
+var onceContext = sync.Once{}
+var cliContext context.Context
+
+func CLIContext() context.Context {
+	// setup signal handling
+	onceContext.Do(func() {
+		var cancel context.CancelFunc
+		cliContext, cancel = context.WithCancel(context.Background())
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			for range c {
+				cancel()
+			}
+		}()
+	})
+	return cliContext
 }
 
 func main() {
@@ -44,39 +87,37 @@ func main() {
 		log.Fatal(err)
 	}
 
-	transport := api.NewHeadersRoundTripper(http.DefaultTransport, map[string]string{
+	// setup api client
+	var transport = http.DefaultTransport
+	transport = api.NewHeadersRoundTripper(transport, map[string]string{
 		"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 	})
-
-	// Client
-	client := api.NewClient(api.ClientOptions{
+	transport = api.NewThrottleRoundTripper(transport, *flagThrottleQps, *flagThrottleBurst)
+	clientOptions := api.ClientOptions{
 		Host:       config.Host,
 		AuthCookie: config.AuthCookie,
 		Transport:  transport,
 		Cache:      !*flagNoCache,
-	})
+	}
+	if *flagDebug {
+		clientOptions.Logger = log.Default()
+	}
+	client := api.NewClient(clientOptions)
 
-	ctx := context.Background()
-
+	// parse command line and execute
 	args := flag.Args()
-	if cmd, ok := Commands[args[0]]; ok {
-		err := cmd(ctx, client, args[1:])
+	if len(args) == 0 {
+		help(nil)
+		os.Exit(1)
+	} else if cmd, ok := cliCommands[args[0]]; ok {
+		err := cmd(CLIContext(), client, args[1:])
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		fmt.Println("error: unknown command:", os.Args[1])
-		fmt.Println()
-		fmt.Println("available commands: ")
-		fmt.Println()
-		for _, v := range slices.Sorted(maps.Keys(Commands)) {
-			fmt.Println(" ", v)
-		}
-		fmt.Println()
-		flag.Usage()
+		help(fmt.Errorf("error: unknown command: %v", os.Args[1]))
 		os.Exit(1)
 	}
-
 }
 
 func PrintJson(v any) {

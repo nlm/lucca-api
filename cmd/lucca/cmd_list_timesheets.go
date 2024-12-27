@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/nlm/lucca-api/api"
@@ -12,9 +13,23 @@ import (
 	"github.com/nlm/lucca-api/modules/timesheets"
 )
 
+func init() {
+	RegisterCommand("list-timesheets", ListTimesheets)
+}
+
 var (
 	flagsetTimesheets = flag.NewFlagSet("list-timesheets", flag.ExitOnError)
 )
+
+func axisFullName(axisSection timesheets.AxisSections) string {
+	b := strings.Builder{}
+	b.WriteString(axisSection.Name)
+	for child := axisSection.Child; child != nil; child = child.Child {
+		b.WriteString(" > ")
+		b.WriteString(strings.TrimSpace(strings.Replace(child.Name, "\t", " ", -1)))
+	}
+	return b.String()
+}
 
 func ListTimesheets(ctx context.Context, client *api.Client, args []string) error {
 	flagsetTimesheets.Parse(args)
@@ -54,30 +69,38 @@ func ListTimesheets(ctx context.Context, client *api.Client, args []string) erro
 			}
 			return a.StartsAt.AsTime().Before(b.StartsAt.AsTime())
 		})
-		tbl := table.New("Owner", "Date", "Day", "Name", "Duration")
+		tbl := table.New("Date", "Day", "Name", "Duration")
 		for _, item := range tsDetails.Items {
 			startsAt := item.StartsAt.AsTime()
 			addRow := func(description string) {
 				tbl.AddRow(
-					fmt.Sprint(owner.FirstName, " ", owner.LastName),         // Owner
-					startsAt.Format(time.DateOnly),                           // Date
-					startsAt.Weekday(),                                       // Weekday
-					description,                                              // Description
+					// fmt.Sprint(owner.FirstName, " ", owner.LastName),         // Owner
+					startsAt.Format(time.DateOnly), // Date
+					startsAt.Weekday(),             // Weekday
+					description,                    // Description
 					fmt.Sprint(item.Duration.Value, " ", item.Duration.Unit), // Duration
 				)
 			}
 			if item.Imputation != nil {
 				for _, axisSection := range item.Imputation.AxisSections {
-					addRow(fmt.Sprint(axisSection.Name, " / ", axisSection.Child.Name))
+					addRow(Work(axisFullName(axisSection)))
 				}
-			} else if item.Type == "halfDayOff" {
-				addRow("half day off")
+			} else if item.Type == timesheets.ItemTypeHalfDayOff || item.Type == timesheets.ItemTypeLeave {
+				if item.AccountName != nil {
+					addRow(Leave(*item.AccountName))
+				} else {
+					addRow(Leave("half day off"))
+				}
 			} else {
-				addRow(item.AccountName)
+				if item.AccountName != nil {
+					addRow(*item.AccountName)
+				} else {
+					addRow("unknown")
+				}
 			}
 		}
+		fmt.Println(Titlef("Timesheet %d of %s %s", approvable.Id, owner.FirstName, owner.LastName))
 		tbl.Print()
-		time.Sleep(1 * time.Second)
 	}
 	return nil
 }
