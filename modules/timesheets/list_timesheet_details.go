@@ -36,22 +36,31 @@ type Axis struct {
 }
 
 type AxisChild struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
-	Code string `json:"code"`
+	Id       int        `json:"id,omitempty"`
+	Name     string     `json:"name,omitempty"`
+	Code     string     `json:"code,omitempty"`
+	IsActive bool       `json:"isActive"`
+	Child    *AxisChild `json:"child"`
 }
 
 type ListTimesheetDetailsResponse api.ItemsList[ListTimesheetDetailsItem]
 
+const (
+	ItemTypeLeave      = "leave"
+	ItemTypeHalfDayOff = "halfDayOff"
+	ItemTypeTimeEntry  = "timeEntry"
+)
+
 type ListTimesheetDetailsItem struct {
-	Owner       int           `json:"ownerId,omitempty"`
+	Id          int           `json:"id"`
+	OwnerId     int           `json:"ownerId,omitempty"`
 	StartsAt    *api.DateTime `json:"startsAt,omitempty"` // FIXME omitzero + remove pointer
 	EndsAt      *api.DateTime `json:"endsAt,omitempty"`   // FIXME omitzero + remove pointer
 	Duration    *Duration     `json:"duration,omitempty"`
 	Imputation  *Imputation   `json:"imputation,omitempty"`
-	AccountName string        `json:"accountName,omitempty"`
+	AccountName *string       `json:"accountName,omitempty"`
 	Position    string        `json:"position,omitempty"`
-	Type        string        `json:"type"`
+	Type        string        `json:"type"` // `leave` or `halfDayOff` or `timeEntry`
 	// {
 	// 	"id": 314837,
 	// 	"ownerId": 368,

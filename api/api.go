@@ -71,7 +71,7 @@ func (c *Client) Get(ctx context.Context, extraPath string, getParams any, resul
 		}
 		return json.Unmarshal(cachedBody, result)
 	}
-	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
 	if err != nil {
 		return err
 	}
@@ -105,6 +105,45 @@ func (c *Client) Get(ctx context.Context, extraPath string, getParams any, resul
 		return err
 	}
 	c.SetCache(CacheKeyOf(http.MethodGet, extraPath, getParams), body)
+	return nil
+}
+
+func (c *Client) Post(ctx context.Context, extraPath string, postParams any, result any) error {
+	url := c.baseUrl.WithExtraPath(extraPath)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url.String(), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	// log.Printf("REQ->%v\n", req)
+	if c.logger != nil {
+		c.logger.Printf("URL->%v\n", req.URL.String())
+	}
+	res, err := c.hc.Do(req)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode/100 != 2 {
+		return fmt.Errorf("error: %s", res.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(res.Body, 1000000000))
+	if err != nil {
+		return err
+	}
+	if c.logger != nil {
+		log.Print("BODY->", string(body))
+		log.Printf("RES->%v\n", *res)
+	}
+	if reflect.TypeOf(result).Kind() != reflect.Pointer {
+		if c.logger != nil {
+			log.Printf("warning: result is not a pointer")
+		}
+	}
+	err = json.Unmarshal(body, result)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
