@@ -155,3 +155,13 @@ func (c *Client) HTTPClient() *http.Client {
 func Ptr[T any](v T) *T {
 	return &v
 }
+
+// Get is an helper to template GET methods
+func Get[REQ, RES any](c *Client, ctx context.Context, extraPath string, req *REQ) (*RES, error) {
+	res := new(RES)
+	err := c.Get(ctx, extraPath, req, res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}

@@ -6,10 +6,6 @@ import (
 	"github.com/nlm/lucca-api/api"
 )
 
-type WorkLocationsService struct {
-	client *api.Client
-}
-
 type ListUsersWithCurrentLocationRequest struct {
 	DepartmentId     []int `json:"departmentId"`
 	EstablishmentId  int   `json:"establishmentId"`
@@ -35,8 +31,9 @@ type Department struct {
 
 type ListUsersWithCurrentLocationResponse api.ItemsList[UsersWithWithCurrentLocation]
 
-func (wl *WorkLocationsService) ListUsersWithCurrentLocation(ctx context.Context, req *ListUsersWithCurrentLocationRequest) (*ListUsersWithCurrentLocationResponse, error) {
-	res := new(ListUsersWithCurrentLocationResponse)
-	err := wl.client.Get(ctx, "/work-locations/api/schedule/usersWithCurrentLocation", req, res)
-	return res, err
+func (ws *WorkLocationsService) ListUsersWithCurrentLocation(ctx context.Context, req *ListUsersWithCurrentLocationRequest) (*ListUsersWithCurrentLocationResponse, error) {
+	// res := new(ListUsersWithCurrentLocationResponse)
+	// err := ws.client.Get(ctx, "/work-locations/api/schedule/usersWithCurrentLocation", req, res)
+	// return res, err
+	return api.Get[ListUsersWithCurrentLocationRequest, ListUsersWithCurrentLocationResponse](ws.client, ctx, "/work-locations/api/schedule/usersWithCurrentLocation", req)
 }
