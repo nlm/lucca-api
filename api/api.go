@@ -165,3 +165,13 @@ func Get[REQ, RES any](c *Client, ctx context.Context, extraPath string, req *RE
 	}
 	return res, nil
 }
+
+// Post is an helper to template Post methods
+func Post[REQ, RES any](c *Client, ctx context.Context, extraPath string, req *REQ) (*RES, error) {
+	res := new(RES)
+	err := c.Post(ctx, extraPath, req, res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}

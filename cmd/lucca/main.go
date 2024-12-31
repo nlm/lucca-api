@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"slices"
 	"sync"
+	"syscall"
 
 	"github.com/BurntSushi/toml"
 	"github.com/nlm/lucca-api/api"
@@ -35,13 +36,21 @@ type CommandFunc func(ctx context.Context, client *api.Client, args []string) er
 
 var cliCommands = make(map[string]CommandFunc)
 
-func RegisterCommand(name string, fn CommandFunc) {
+// RegisterCommand registers a command in the CLI handler.
+func RegisterCommand(name string, fn CommandFunc, aliases ...string) {
 	if _, ok := cliCommands[name]; ok {
 		panic(fmt.Sprintln("command already registered:", name))
 	}
 	cliCommands[name] = fn
+	for _, alias := range aliases {
+		if _, ok := cliCommands[alias]; ok {
+			panic(fmt.Sprintln("alias already registered:", alias))
+		}
+		cliCommands[alias] = fn
+	}
 }
 
+// help displays help message.
 func help(err error) {
 	if err != nil {
 		fmt.Println(err)
@@ -58,13 +67,14 @@ func help(err error) {
 var onceContext = sync.Once{}
 var cliContext context.Context
 
+// CLIContext creates a new context that gracefully handles signals.
 func CLIContext() context.Context {
 	// setup signal handling
 	onceContext.Do(func() {
 		var cancel context.CancelFunc
 		cliContext, cancel = context.WithCancel(context.Background())
 		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		go func() {
 			for range c {
 				cancel()
@@ -89,6 +99,9 @@ func main() {
 
 	// setup api client
 	var transport = http.DefaultTransport
+	if *flagMock {
+		transport = api.NewMockRoundTripper(true, nil)
+	}
 	transport = api.NewHeadersRoundTripper(transport, map[string]string{
 		"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 	})

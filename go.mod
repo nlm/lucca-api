@@ -11,7 +11,6 @@ require (
 	github.com/keybase/go-keychain v0.0.0-20231219164618-57a3676c3af6
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/rodaine/table v1.3.0
-	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.23.0
 )

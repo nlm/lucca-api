@@ -7,9 +7,12 @@ import (
 )
 
 type ListUsersWithCurrentLocationRequest struct {
-	DepartmentId     []int `json:"departmentId"`
-	EstablishmentId  int   `json:"establishmentId"`
-	ExcludePrincipal bool  `json:"excludePrincipal"`
+	DepartmentId     []int    `json:"departmentId,omitempty"`
+	EstablishmentId  int      `json:"establishmentId"`
+	ExcludePrincipal bool     `json:"excludePrincipal"`
+	Limit            *int     `json:"limit,omitempty"`
+	Sort             []string `json:"sort,omitempty"` // sort=departmentHierarchy,lastName,firstName
+	RelativeUsers    *string  `json:"relativeUsers"`  // relativeUsers=CollaboratorsLevel3
 }
 
 type UsersWithWithCurrentLocation struct {
@@ -18,8 +21,8 @@ type UsersWithWithCurrentLocation struct {
 	Id                    int          `json:"id"`
 	FirstName             string       `json:"firstName"`
 	LastName              string       `json:"lastName"`
-	EstablishmentId       int          `json:"establishmentId"`
-	DepartmentId          int          `json:"departmentId"`
+	EstablishmentId       *int         `json:"establishmentId,omitempty"`
+	DepartmentId          *int         `json:"departmentId,omitempty"`
 	DepartmentHierarchy   []Department `json:"departmentHierarchy"`
 }
 
@@ -32,8 +35,5 @@ type Department struct {
 type ListUsersWithCurrentLocationResponse api.ItemsList[UsersWithWithCurrentLocation]
 
 func (ws *WorkLocationsService) ListUsersWithCurrentLocation(ctx context.Context, req *ListUsersWithCurrentLocationRequest) (*ListUsersWithCurrentLocationResponse, error) {
-	// res := new(ListUsersWithCurrentLocationResponse)
-	// err := ws.client.Get(ctx, "/work-locations/api/schedule/usersWithCurrentLocation", req, res)
-	// return res, err
 	return api.Get[ListUsersWithCurrentLocationRequest, ListUsersWithCurrentLocationResponse](ws.client, ctx, "/work-locations/api/schedule/usersWithCurrentLocation", req)
 }
