@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 
-	"github.com/nlm/lucca-api/api"
 	"github.com/nlm/lucca-api/internal/table"
 	"github.com/nlm/lucca-api/modules/directory"
 	"github.com/nlm/lucca-api/modules/identity"
@@ -17,13 +15,14 @@ func init() {
 	RegisterCommand(nameListDiploma, ListDiploma)
 }
 
-func ListDiploma(ctx context.Context, client *api.Client, args []string) error {
+func ListDiploma(ctx Context, args []string) error {
 	fset := flag.NewFlagSet(nameListDiploma, flag.ExitOnError)
 	if err := fset.Parse(args); err != nil {
 		return err
 	}
 	args = fset.Args()
 
+	client := ctx.Client()
 	identityService := identity.New(client)
 	directoryService := directory.New(client)
 

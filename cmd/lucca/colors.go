@@ -19,3 +19,11 @@ func Title(s string) string {
 func Titlef(format string, a ...any) string {
 	return color.New(color.BgHiGreen, color.FgBlack, color.Bold).Sprintf(format, a...)
 }
+
+func Error(s string) string {
+	return color.New(color.BgHiRed, color.FgBlack, color.Bold).Sprint(s)
+}
+
+func Info(s string) string {
+	return color.New(color.BgHiBlue, color.FgBlack, color.Bold).Sprint(s)
+}

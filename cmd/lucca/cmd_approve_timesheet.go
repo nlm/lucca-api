@@ -1,12 +1,10 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"strconv"
 
-	"github.com/nlm/lucca-api/api"
 	"github.com/nlm/lucca-api/internal/table"
 	"github.com/nlm/lucca-api/modules/timesheets"
 )
@@ -19,7 +17,7 @@ var (
 	flagsetApproveTimesheet = flag.NewFlagSet("approve-timesheet", flag.ExitOnError)
 )
 
-func ApproveTimesheet(ctx context.Context, client *api.Client, args []string) error {
+func ApproveTimesheet(ctx Context, args []string) error {
 	flagsetApproveTimesheet.Parse(args)
 	args = flagsetApproveTimesheet.Args()
 
@@ -31,7 +29,7 @@ func ApproveTimesheet(ctx context.Context, client *api.Client, args []string) er
 		return fmt.Errorf("invalid timesheet id '%v': %v", args[0], err)
 	}
 
-	timesheetsService := timesheets.New(client)
+	timesheetsService := timesheets.New(ctx.Client())
 	res, err := timesheetsService.ApproveTimesheet(ctx, &timesheets.ApproveTimesheetRequest{
 		Id: timesheetId,
 	})

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"sort"
@@ -31,13 +30,14 @@ func axisFullName(axisSection timesheets.AxisSections) string {
 	return b.String()
 }
 
-func ListTimesheets(ctx context.Context, client *api.Client, args []string) error {
+func ListTimesheets(ctx Context, args []string) error {
 	flagsetTimesheets.Parse(args)
 
-	timesheetsService := timesheets.New(client)
+	timesheetsService := timesheets.New(ctx.Client())
 
 	approvables, err := timesheetsService.ListApprovables(ctx, &timesheets.ListApprovablesRequest{
 		Page: api.Page{Page: 1, PageSize: 50},
+		// IncludeOnlyOthers: true,
 	})
 	if err != nil {
 		return fmt.Errorf("error listing approvables: %w", err)

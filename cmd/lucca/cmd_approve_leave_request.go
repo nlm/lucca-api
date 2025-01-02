@@ -1,12 +1,10 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"strconv"
 
-	"github.com/nlm/lucca-api/api"
 	"github.com/nlm/lucca-api/internal/table"
 	"github.com/nlm/lucca-api/modules/leaves"
 )
@@ -17,7 +15,7 @@ func init() {
 	RegisterCommand(nameApproveLeaveRequest, ApproveLeaveRequest)
 }
 
-func ApproveLeaveRequest(ctx context.Context, client *api.Client, args []string) error {
+func ApproveLeaveRequest(ctx Context, args []string) error {
 	fset := flag.NewFlagSet(nameApproveLeaveRequest, flag.ExitOnError)
 	if err := fset.Parse(args); err != nil {
 		return err
@@ -31,7 +29,7 @@ func ApproveLeaveRequest(ctx context.Context, client *api.Client, args []string)
 		return err
 	}
 
-	leavesService := leaves.New(client)
+	leavesService := leaves.New(ctx.Client())
 	res, err := leavesService.ApproveLeave(ctx, &leaves.ApproveLeaveRequest{
 		Id: leaveRequestId,
 	})

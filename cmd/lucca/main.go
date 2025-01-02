@@ -14,25 +14,11 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/BurntSushi/toml"
 	"github.com/nlm/lucca-api/api"
+	"github.com/nlm/lucca-api/cmd/lucca/config"
 )
 
-var (
-	flagMock          = flag.Bool("mock", false, "use mock data")
-	flagConfigFile    = flag.String("config", "config.toml", "config file")
-	flagDebug         = flag.Bool("debug", false, "debug mode")
-	flagNoCache       = flag.Bool("no-cache", false, "disable cache")
-	flagThrottleQps   = flag.Int("throttle-qps", 5, "requests per second")
-	flagThrottleBurst = flag.Int("throttle-burst", 5, "requests burst")
-)
-
-type Config struct {
-	Host       string `toml:"host"`
-	AuthCookie string `toml:"auth-cookie"`
-}
-
-type CommandFunc func(ctx context.Context, client *api.Client, args []string) error
+type CommandFunc func(ctx Context, args []string) error
 
 var cliCommands = make(map[string]CommandFunc)
 
@@ -68,7 +54,7 @@ var onceContext = sync.Once{}
 var cliContext context.Context
 
 // CLIContext creates a new context that gracefully handles signals.
-func CLIContext() context.Context {
+func CLIContext() Context {
 	// setup signal handling
 	onceContext.Do(func() {
 		var cancel context.CancelFunc
@@ -81,20 +67,24 @@ func CLIContext() context.Context {
 			}
 		}()
 	})
-	return cliContext
+	return NewContext(cliContext)
 }
 
 func main() {
+	var (
+		flagMock          = flag.Bool("mock", false, "use mock data")
+		flagConfigFile    = flag.String("config", "config.toml", "config file")
+		flagDebug         = flag.Bool("debug", false, "debug mode")
+		flagNoCache       = flag.Bool("no-cache", false, "disable cache")
+		flagThrottleQps   = flag.Int("throttle-qps", 5, "requests per second")
+		flagThrottleBurst = flag.Int("throttle-burst", 5, "requests burst")
+	)
 	flag.Parse()
 
-	// read config
-	var config Config
-	md, err := toml.DecodeFile(*flagConfigFile, &config)
-	if len(md.Undecoded()) > 0 {
-		log.Fatal("extra config keys:", md.Undecoded())
-	}
+	// read conf
+	conf, err := config.ReadConfig(*flagConfigFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error loading config file: %v", err)
 	}
 
 	// setup api client
@@ -107,8 +97,8 @@ func main() {
 	})
 	transport = api.NewThrottleRoundTripper(transport, *flagThrottleQps, *flagThrottleBurst)
 	clientOptions := api.ClientOptions{
-		Host:       config.Host,
-		AuthCookie: config.AuthCookie,
+		Host:       conf.Host,
+		AuthCookie: conf.AuthCookie,
 		Transport:  transport,
 		Cache:      !*flagNoCache,
 	}
@@ -117,13 +107,15 @@ func main() {
 	}
 	client := api.NewClient(clientOptions)
 
+	ctx := CLIContext().WithClient(client).WithConfig(conf)
+
 	// parse command line and execute
 	args := flag.Args()
 	if len(args) == 0 {
 		help(nil)
 		os.Exit(1)
 	} else if cmd, ok := cliCommands[args[0]]; ok {
-		err := cmd(CLIContext(), client, args[1:])
+		err := cmd(ctx, args[1:])
 		if err != nil {
 			log.Fatal(err)
 		}

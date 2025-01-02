@@ -2,14 +2,11 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	"github.com/nlm/lucca-api/api"
 	"github.com/nlm/lucca-api/internal/chrome-cookie-decrypt/cookies"
 	"github.com/nlm/lucca-api/internal/chrome-cookie-decrypt/database"
 	"github.com/nlm/lucca-api/internal/chrome-cookie-decrypt/keychain"
@@ -23,17 +20,8 @@ const (
 	cookiesPathSuffix = "Library/Application Support/Google/Chrome/Default/Cookies"
 )
 
-func ImportAuthCookie(ctx context.Context, client *api.Client, args []string) error {
-
-	// read config
-	var config Config
-	md, err := toml.DecodeFile(*flagConfigFile, &config)
-	if len(md.Undecoded()) > 0 {
-		return fmt.Errorf("extra config keys: %v", md.Undecoded())
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
+func ImportAuthCookie(ctx Context, args []string) error {
+	config := ctx.Config()
 
 	// open cookie db
 	home, err := os.UserHomeDir()
@@ -80,12 +68,7 @@ func ImportAuthCookie(ctx context.Context, client *api.Client, args []string) er
 			return fmt.Errorf("failed encoding config: %w", err)
 		}
 
-		f, err := os.Create(*flagConfigFile)
-		if err != nil {
-			return fmt.Errorf("failed opening config file for writing: %w", err)
-		}
-		defer f.Close()
-		_, err = f.Write(b.Bytes())
+		err = config.Save()
 		if err != nil {
 			return fmt.Errorf("failed writing config to file: %w", err)
 		}
