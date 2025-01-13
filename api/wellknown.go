@@ -11,3 +11,8 @@ type HeaderData[H, D any] struct {
 	Header H `json:"header,omitempty"`
 	Data   D `json:"data,omitempty"`
 }
+
+type Header struct {
+	Generated *DateTime `json:"generated,omitempty"`
+	Principal any
+}

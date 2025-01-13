@@ -8,13 +8,15 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
+func init() {
+	sql.Register("sqlite3_with_regex", &sqlite3.SQLiteDriver{
+		ConnectHook: func(conn *sqlite3.SQLiteConn) error {
+			return conn.RegisterFunc("regexp", regex, true)
+		},
+	})
+}
+
 func InitDB(dbPath string) (*sqlx.DB, error) {
-	sql.Register("sqlite3_with_regex",
-		&sqlite3.SQLiteDriver{
-			ConnectHook: func(conn *sqlite3.SQLiteConn) error {
-				return conn.RegisterFunc("regexp", regex, true)
-			},
-		})
 	return sqlx.Open("sqlite3_with_regex", dbPath)
 }
 

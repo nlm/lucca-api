@@ -36,7 +36,6 @@ func (u URL) WithGetParams(p any) URL {
 	q := (*url.URL)(&u).Query()
 	appenders := make([]string, 0)
 	for _, field := range slices.SortedStableFunc(slices.Values(reflect.VisibleFields(t)), compareStructField) {
-		// fmt.Println("FIELD", field.Name)
 		jsonTag, ok := field.Tag.Lookup("json")
 		if ok {
 			tag, tagOpt := parseTag(jsonTag)
@@ -50,11 +49,9 @@ func (u URL) WithGetParams(p any) URL {
 				for i := range fieldValue.Len() {
 					acc = append(acc, url.PathEscape(fmt.Sprint(fieldValue.Index(i).Interface())))
 				}
-				fmt.Println(">>", acc)
 				fieldValue = reflect.New(reflect.TypeOf("")).Elem()
 				fieldValue.SetString(strings.Join(acc, ","))
 				if len(fieldValue.String()) > 0 {
-					// u.RawQuery = u.RawQuery + fieldValue.String()
 					appenders = append(appenders, fmt.Sprintf("%s=%s", tag, fieldValue.String()))
 				}
 				continue
@@ -65,6 +62,14 @@ func (u URL) WithGetParams(p any) URL {
 			}
 		}
 	}
-	u.RawQuery = strings.Join([]string{q.Encode(), strings.Join(appenders, "&")}, "&")
+	buf := strings.Builder{}
+	buf.WriteString(q.Encode())
+	if len(appenders) > 0 {
+		if buf.Len() > 0 {
+			buf.WriteRune('&')
+		}
+		buf.Write([]byte(strings.Join(appenders, "&")))
+	}
+	u.RawQuery = buf.String()
 	return u
 }

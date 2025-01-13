@@ -45,6 +45,7 @@ func ListTimesheets(ctx Context, args []string) error {
 
 	for _, approvable := range approvables.Items {
 		// get owner details
+		// FIXME CACHE
 		owner, err := timesheetsService.GetOwner(ctx, &timesheets.GetOwnerRequest{Id: approvable.Owner.Id})
 		if err != nil {
 			return fmt.Errorf("error getting owner details: %w", err)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"reflect"
 	"time"
 
@@ -37,6 +38,7 @@ func (s *Tray) Run(ctx context.Context, fn func(ctx context.Context, tray *Tray)
 func (s *Tray) SetError(err error) {
 	log.Println(err)
 	systray.SetIcon(images.Warning)
+	systray.SetTitle("Lucca ERR")
 	systray.SetTooltip(err.Error())
 }
 
@@ -72,6 +74,8 @@ func (s Tray) Cancel() {
 	s.cancel()
 }
 
+var flagInterval = flag.Duration("update-interval", 922*time.Second, "update interval")
+
 func main() {
 	var flagConfigFile = flag.String("config", "config.toml", "config file")
 	flag.Parse()
@@ -103,7 +107,7 @@ func onReady(conf *config.Config) func(context.Context, *Tray) {
 			// Cache:      false,
 		})
 
-		tick := time.Tick(245 * time.Second)
+		tick := time.Tick(*flagInterval)
 		for {
 			log.Println("loop")
 			evLsn := UpdateMenu(ctx, conf, client, tray)
@@ -147,10 +151,35 @@ func UpdateMenu(ctx context.Context, conf *config.Config, client *api.Client, tr
 		}
 	}()
 
+	err := ImportAuthCookie(conf, false)
+	if err != nil {
+		log.Println("import:", err)
+	} else {
+		u := api.URL{Scheme: "https", Host: conf.Host}
+		if conf.AuthCookie != "" {
+			client.HTTPClient().Jar.SetCookies((*url.URL)(&u), []*http.Cookie{
+				{
+					Name:   "authToken",
+					Value:  conf.AuthCookie,
+					Secure: true,
+				},
+			})
+		}
+	}
+
 	// detect my identity
 	identityService := identity.New(client)
 	me, err := identityService.GetPrincipal(tray.Context(), &identity.GetPrincipalRequest{})
 	if err != nil {
+		if httpErr, ok := api.AsServerError(err); ok && httpErr.StatusCode == 401 {
+			mConnect := systray.AddMenuItem(fmt.Sprintf("Connect to Lucca"), "")
+			eventListeners[mConnect.ClickedCh] = func() {
+				err := openURL(fmt.Sprintf("https://%s/home", conf.Host))
+				if err != nil {
+					log.Println(err)
+				}
+			}
+		}
 		tray.SetError(err)
 		return eventListeners
 	}

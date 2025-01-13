@@ -39,3 +39,12 @@ func TestURL(t *testing.T) {
 	u = u.WithGetParams(pt)
 	assert.Equal(t, "date=2024-12-31&field1=demo1&field2=2&field3=42&field4=1,2,3,4&field5=x,%20", u.RawQuery)
 }
+
+func TestURLEmptyPath(t *testing.T) {
+	u := URL{
+		Scheme: "https",
+		Host:   "example.ilucca.net",
+		Path:   "/api/v3/test",
+	}.WithGetParams(struct{}{})
+	assert.Equal(t, "https://example.ilucca.net/api/v3/test", u.String())
+}

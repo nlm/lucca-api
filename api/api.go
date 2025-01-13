@@ -85,7 +85,7 @@ func (c *Client) Get(ctx context.Context, extraPath string, getParams any, resul
 		return err
 	}
 	if res.StatusCode/100 != 2 {
-		return fmt.Errorf("error: %s", res.Status)
+		return &ServerError{StatusCode: res.StatusCode}
 	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, 1000000000))
 	if err != nil {
@@ -125,7 +125,7 @@ func (c *Client) Post(ctx context.Context, extraPath string, postParams any, res
 		return err
 	}
 	if res.StatusCode/100 != 2 {
-		return fmt.Errorf("error: %s", res.Status)
+		return &ServerError{StatusCode: res.StatusCode}
 	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, 1000000000))
 	if err != nil {
@@ -174,4 +174,24 @@ func Post[REQ, RES any](c *Client, ctx context.Context, extraPath string, req *R
 		return nil, err
 	}
 	return res, nil
+}
+
+// ServerError is an error raised if status is > 200.
+type ServerError struct {
+	StatusCode int
+}
+
+func (err ServerError) StatusText() {
+	http.StatusText(err.StatusCode)
+}
+
+func (err ServerError) Error() string {
+	return fmt.Sprintf("%d %s", err.StatusCode, http.StatusText(err.StatusCode))
+}
+
+func AsServerError(err error) (*ServerError, bool) {
+	if sErr, ok := err.(*ServerError); ok {
+		return sErr, true
+	}
+	return nil, false
 }
