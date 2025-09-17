@@ -74,15 +74,15 @@ func (s Tray) Cancel() {
 	s.cancel()
 }
 
-var flagInterval = flag.Duration("update-interval", 922*time.Second, "update interval")
+var (
+	flagInterval = flag.Duration("update-interval", 922*time.Second, "update interval")
+	flagURL      = flag.String("lucca-host", "scaleway.ilucca.net", "hostname for ilucca (ex: test.ilucca.net)")
+)
 
 func main() {
-	var flagConfigFile = flag.String("config", "config.toml", "config file")
 	flag.Parse()
-
-	conf, err := config.ReadConfig(*flagConfigFile)
-	if err != nil {
-		log.Fatal(err)
+	conf := &config.Config{
+		Host: *flagURL,
 	}
 
 	tray := Tray{}
